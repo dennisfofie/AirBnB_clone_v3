@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-"""This module defines a class to manage file storage for hbnb clone"""
+"""
+Contains the FileStorage class
+"""
+
 import json
 from models.amenity import Amenity
 from models.base_model import BaseModel
@@ -9,10 +12,16 @@ from models.review import Review
 from models.state import State
 from models.user import User
 
+classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
+           "Place": Place, "Review": Review, "State": State, "User": User}
+
 
 class FileStorage:
-    """This class manages storage of hbnb models in JSON format"""
-    __file_path = 'file.json'
+    """serializes instances to a JSON file & deserializes back to instances"""
+
+    # string - path to the JSON file
+    __file_path = "file.json"
+    # dictionary - empty but will store all objects by <class name>.id
     __objects = {}
 
     def all(self, cls=None):
@@ -26,62 +35,54 @@ class FileStorage:
         return self.__objects
 
     def new(self, obj):
-        """Adds new object to storage dictionary"""
-        self.all().update({obj.to_dict()['__class__'] + '.' + obj.id: obj})
+        """sets in __objects the obj with key <obj class name>.id"""
+        if obj is not None:
+            key = obj.__class__.__name__ + "." + obj.id
+            self.__objects[key] = obj
 
     def save(self):
-        """Saves storage dictionary to file"""
-        with open(FileStorage.__file_path, 'w') as f:
-            temp = {}
-            temp.update(FileStorage.__objects)
-            for key, val in temp.items():
-                temp[key] = val.to_dict()
-            json.dump(temp, f)
+        """serializes __objects to the JSON file (path: __file_path)"""
+        json_objects = {}
+        for key in self.__objects:
+            json_objects[key] = self.__objects[key].to_dict()
+        with open(self.__file_path, 'w') as f:
+            json.dump(json_objects, f)
 
     def reload(self):
-        """Loads storage dictionary from file"""
-        classes = {
-                    'BaseModel': BaseModel, 'User': User, 'Place': Place,
-                    'State': State, 'City': City, 'Amenity': Amenity,
-                    'Review': Review
-                  }
+        """deserializes the JSON file to __objects"""
         try:
-            temp = {}
-            with open(FileStorage.__file_path, 'r') as f:
-                temp = json.load(f)
-                for key, val in temp.items():
-                    self.all()[key] = classes[val['__class__']](**val)
-        except FileNotFoundError:
+            with open(self.__file_path, 'r') as f:
+                jo = json.load(f)
+            for key in jo:
+                self.__objects[key] = classes[jo[key]["__class__"]](**jo[key])
+        except:
             pass
 
     def delete(self, obj=None):
-        """Method that deletes obj from __objects"""
+        """delete obj from __objects if it’s inside"""
         if obj is not None:
             key = obj.__class__.__name__ + '.' + obj.id
             if key in self.__objects:
                 del self.__objects[key]
 
     def close(self):
-        """
-        """
+        """call reload() method for deserializing the JSON file to objects"""
         self.reload()
 
     def get(self, cls, id):
-        '''
-            Retrieves one object if exists
-        '''
-        cls_dict = self.all(cls)
-        for k, v in cls_dict.items():
-            obj = cls + '.' + id
-            if k == obj:
-                return(v)
-        return(None)
+        """
+        Returns the object
+        """
+        obj = self.__session.query(cls).get(id)
+        if obj is None:
+            return None
+        return obj
 
     def count(self, cls=None):
-        '''
-           counts the num of objects in particular cls
-        '''
-        count = 0
-        cls_dict = self.all(cls)
-        count = len(cls_dict)
-        return(count)
+        """
+        count the number of objects in storage
+        """
+        objs = self.all(cls)
+        return (len(objs))
+
+        return count
